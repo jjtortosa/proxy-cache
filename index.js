@@ -3,9 +3,7 @@ var os = require('os')
 ,	path = require('path')
 ,	http = require('http');
 
-var expireDays = 1;
-
-var scripts = {
+var files = {
 	"ga.js": {
 		src: "http://www.google-analytics.com/ga.js"
 	},
@@ -17,7 +15,7 @@ var scripts = {
 function PCache(req, res, next){
 	var fn = req.url.substr(1);
 	
-	if(!scripts[fn])
+	if(!files[fn])
 		return next();
 	
 	PCache.getFile(fn, function(err, file){
@@ -26,15 +24,31 @@ function PCache(req, res, next){
 		
 		var expires = new Date();
 		
-		expires.setDate(expires.getDate()+60);
+		expires.setDate(expires.getDate() + (files[fn].expireDays || PCache.expireDays));
 		
 		res.set('Expires', expires.toUTCString());
-		res.sendFile(file);
+		res.sendFile(file, {
+			headers: {
+				Expires: expires.toUTCString()
+			}
+		});
 	});
 }
 
+PCache.cachedDays = 1;
+PCache.expireDays = 60;
+
+PCache.set = function(fn, opt){
+	if(typeof opt === 'string')
+		opt = {src: opt};
+	
+	files[fn] = opt;
+};
+
 PCache.getFile = function(fn, cb){
-	var tmp = path.join(os.tmpdir(), fn)
+	var data = files[fn]
+	,	filename = data.fn || fn
+	,	tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename)
 	,	exists = fs.existsSync(tmp);
 	
 	if(exists){
@@ -42,13 +56,13 @@ PCache.getFile = function(fn, cb){
 		
 		var expire = fs.statSync(tmp).ctime;
 		
-		expire.setDate(expire.getDate() + expireDays);
+		expire.setDate(expire.getDate() + (data.cachedDays || PCache.cachedDays));
 		
 		if(Date.now() < expire.getTime())
 			return;
 	}
 	
-	PCache.getRemoteFile(scripts[fn].src, function(err, r){
+	PCache.getRemoteFile(data.src, function(err, r){
 		if(err){
 			console.error('Error with the request:', err.message);
 			
