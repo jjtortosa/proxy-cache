@@ -1,6 +1,6 @@
 {
 	"name": "jj-proxy-cache",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"keywords": ["util", "functional", "server", "client", "browser"],
 	"author": "jj",
 	"contributors": [],

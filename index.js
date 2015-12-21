@@ -1,5 +1,6 @@
 var os = require('os')
 ,	fs = require('fs')
+,	Url = require('url')
 ,	path = require('path')
 ,	http = require('http');
 
@@ -27,6 +28,7 @@ function PCache(req, res, next){
 		expires.setDate(expires.getDate() + (files[fn].expireDays || PCache.expireDays));
 		
 		res.set('Expires', expires.toUTCString());
+		
 		res.sendFile(file, {
 			headers: {
 				Expires: expires.toUTCString()
@@ -35,7 +37,7 @@ function PCache(req, res, next){
 	});
 }
 
-PCache.cachedDays = 1;
+PCache.cachedMinutes = 0;
 PCache.expireDays = 60;
 
 PCache.set = function(fn, opt){
@@ -48,36 +50,59 @@ PCache.set = function(fn, opt){
 PCache.getFile = function(fn, cb){
 	var data = files[fn]
 	,	filename = data.fn || fn
-	,	tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename)
-	,	exists = fs.existsSync(tmp);
+	,	tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename);
 	
-	if(exists){
-		cb(null, tmp);
+	fs.stat(tmp, function(err, stats){
+		if(err)
+			return cb(err);
 		
-		var expire = fs.statSync(tmp).ctime;
-		
-		expire.setDate(expire.getDate() + (data.cachedDays || PCache.cachedDays));
-		
-		if(Date.now() < expire.getTime())
-			return;
-	}
-	
-	PCache.getRemoteFile(data.src, function(err, r){
-		if(err){
-			console.error('Error with the request:', err.message);
-			
-			if(!exists)
-				cb(err);
-			
-			return;
-		}
-		
-		fs.writeFileSync(tmp, r);
-		
-		if(!exists)
+		if(stats){
 			cb(null, tmp);
-    });
-	
+
+			var expire = fs.statSync(tmp).ctime;
+
+			expire.setMinutes(expire.getMinutes() + (data.cachedMinutes || PCache.cachedMinutes));
+
+			if(Date.now() < expire.getTime())
+				return;
+		}
+
+		PCache.getRemoteLastModified(data.src, function(lastModified){
+			if(stats && stats.mtime.getTime() > lastModified.getTime())
+				return;
+			
+			PCache.getRemoteFile(data.src, function(err, r){
+				if(err){
+					console.error('Error with the request:', err.message);
+
+					if(!stats)
+						cb(err);
+
+					return;
+				}
+
+				fs.writeFileSync(tmp, r);
+
+				if(!stats)
+					cb(null, tmp);
+			});
+		});
+	});
+};
+
+PCache.getRemoteLastModified = function(url, cb){
+	url = Url.parse(url);
+
+	var options = {
+		method: 'HEAD',
+		host:  url.host,
+		port: url.protocol === 'http:'? 80 : 443,
+		path: url.path
+	};
+
+	http.request(options, function(res) {
+		cb(new Date(res.headers['last-modified'] || res.headers['Last-Modified']));
+	}).end();
 };
 
 PCache.getRemoteFile = function(url, cb){
