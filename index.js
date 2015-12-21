@@ -37,7 +37,7 @@ function PCache(req, res, next){
 	});
 }
 
-PCache.cachedMinutes = 0;
+PCache.cachedMinutes = 10;
 PCache.expireDays = 60;
 
 PCache.set = function(fn, opt){
