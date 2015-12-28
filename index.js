@@ -53,7 +53,7 @@ PCache.getFile = function(fn, cb){
 	,	tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename);
 	
 	fs.stat(tmp, function(err, stats){
-		if(err)
+		if(err && err.code !== 'ENOENT')
 			return cb(err);
 		
 		if(stats){
