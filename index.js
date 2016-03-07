@@ -1,10 +1,12 @@
-var os = require('os')
-,	fs = require('fs')
-,	Url = require('url')
-,	path = require('path')
-,	http = require('http');
+"use strict";
 
-var files = {
+const os = require('os');
+const fs = require('fs');
+const Url = require('url');
+const path = require('path');
+const http = require('http');
+
+let files = {
 	"ga.js": {
 		src: "http://www.google-analytics.com/ga.js"
 	},
@@ -40,17 +42,29 @@ function PCache(req, res, next){
 PCache.cachedMinutes = 10;
 PCache.expireDays = 60;
 
-PCache.set = function(fn, opt){
-	if(typeof opt === 'string')
-		opt = {src: opt};
-	
-	files[fn] = opt;
+PCache.set = function(obj, opt){
+	if(typeof obj === 'string') {
+		let obj_ = {};
+
+		obj_[obj] = opt;
+
+		obj = obj_;
+	}
+
+	Object.keys(obj).forEach(fn => {
+		if (typeof obj[fn] === 'string')
+			obj[fn] = {src: obj[fn]};
+
+		files[fn] = obj[fn];
+	});
+
+	return PCache;
 };
 
 PCache.getFile = function(fn, cb){
-	var data = files[fn]
-	,	filename = data.fn || fn
-	,	tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename);
+	let data = files[fn];
+	let filename = data.fn || fn;
+	let tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename.replace(/\//g, '__'));
 	
 	fs.stat(tmp, function(err, stats){
 		if(err && err.code !== 'ENOENT')
