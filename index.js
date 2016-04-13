@@ -8,15 +8,21 @@ const http = require('http');
 const https = require('https');
 
 //facebook re
-const fbre = /^fb-(\w{2}_\w{2})\.js$/;
+const fbre = /^fb-(\w{2}_\w{2})\.js/;
 
 
 function PCache(req, res, next){
-	var fn = req.url.substr(1);
-	
-	if(!PCache.getData(fn))
+	// eliminamos el query añadido por jQuery.ajax con cache false
+	let fn = req.url.substr(1).replace(/\?_=\d+$/, '');
+
+	const data = PCache.getData(fn);
+
+	if(!data)
 		return next();
-	
+
+	if(data.fn)
+		fn = data.fn;
+
 	PCache.getFile(fn, function(err, file){
 		if(err)
 			return next(err);
@@ -26,7 +32,7 @@ function PCache(req, res, next){
 		expires.setDate(expires.getDate() + (PCache.files[fn].expireDays || PCache.expireDays));
 		
 		res.set('Expires', expires.toUTCString());
-		
+
 		res.sendFile(file, {
 			headers: {
 				Expires: expires.toUTCString()
@@ -47,13 +53,18 @@ PCache.files = {
 };
 
 PCache.getData = function(fn){
-	if(PCache.files[fn])
-		return PCache.files[fn];
-
 	let m = fn.match(fbre);
 
-	if(m)
-		return (PCache.files[fn] = {src: "https://connect.facebook.net/" + m[1] + "/all.js"});
+	if(m) {
+		fn = 'fb-' + m[1] + '.js';
+
+		PCache.files[fn] = {
+			fn: fn,
+			src: "https://connect.facebook.net/" + m[1] + "/all.js"
+		};
+	}
+
+	return PCache.files[fn];
 };
 
 PCache.set = function(obj, opt){
