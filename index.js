@@ -61,6 +61,9 @@ PCache.getData = function(fn){
 		};
 	}
 
+	if(!PCache.files[fn].fn)
+		PCache.files[fn].fn = fn;
+
 	return PCache.files[fn];
 };
 
