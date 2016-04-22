@@ -20,16 +20,13 @@ function PCache(req, res, next){
 	if(!data)
 		return next();
 
-	if(data.fn)
-		fn = data.fn;
-
-	PCache.getFile(fn, function(err, file){
+	PCache.getFile(data, function(err, file){
 		if(err)
 			return next(err);
 		
 		var expires = new Date();
 		
-		expires.setDate(expires.getDate() + (PCache.files[fn].expireDays || PCache.expireDays));
+		expires.setDate(expires.getDate() + (data.expireDays || PCache.expireDays));
 		
 		res.set('Expires', expires.toUTCString());
 
@@ -86,9 +83,8 @@ PCache.set = function(obj, opt){
 	return PCache;
 };
 
-PCache.getFile = function(fn, cb){
-	let data = PCache.files[fn];
-	let filename = data.fn || fn;
+PCache.getFile = function(data, cb){
+	let filename = data.fn;
 	let tmp = path.join(os.tmpdir(), 'proxy-cache-' + filename.replace(/\//g, '__'));
 
 	fs.stat(tmp, function(err, stats){
