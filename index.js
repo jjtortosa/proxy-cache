@@ -57,7 +57,7 @@ PCache.getData = function(fn){
 
 		PCache.files[fn] = {
 			fn: fn,
-			src: "https://connect.facebook.net/" + m[1] + "/all.js"
+			src: "https://connect.facebook.net/" + m[1] + "/sdk.js"
 		};
 	}
 
